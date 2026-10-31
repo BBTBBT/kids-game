@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Little Words">
+<meta name="theme-color" content="#fff8e7">
+<title>Little Words (Ages 0–6)</title>
+<style>
+  :root {
+    --bg: #fff8e7;
+    --ink: #2d2a4a;
+    --card: #ffffff;
+    --accent1: #ff6b6b;
+    --accent2: #4ecdc4;
+    --accent3: #ffd93d;
+    --accent4: #6c5ce7;
+    --accent5: #51cf66;
+    --accent6: #20c997;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: "Comic Sans MS", "Trebuchet MS", "Arial Rounded MT Bold", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    min-height: 100dvh;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    overscroll-behavior-y: none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  header { text-align: center; padding: 20px 10px 10px; }
+  header h1 { font-size: clamp(2rem, 6vw, 3.2rem); color: var(--accent4); }
+  header p { font-size: 1rem; color: #888; margin-top: 4px; }
+
+  /* Tap-to-start screen: needed so iPad Safari allows sound */
+  #start {
+    position: fixed; inset: 0; z-index: 10;
+    background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; padding: 20px; text-align: center;
+  }
+  #start h2 { font-size: clamp(2rem, 7vw, 3.4rem); color: var(--accent4); }
+  #start p { font-size: 1.2rem; color: #666; }
+  #start-btn {
+    font-family: inherit;
+    font-size: clamp(2rem, 7vw, 3rem);
+    background: var(--accent5);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 28px 56px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.15);
+  }
+  #start-btn:active { transform: translateY(5px); box-shadow: 0 3px 0 rgba(0,0,0,0.15); }
+
+  nav, .levels {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px;
+  }
+  nav button, .level-btn, .small-btn {
+    font-family: inherit;
+    font-size: clamp(1.1rem, 3.5vw, 1.7rem);
+    border: none;
+    border-radius: 24px;
+    padding: 14px 20px;
+    cursor: pointer;
+    color: #fff;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.15);
+    transition: transform 0.08s;
+    min-width: 110px;
+    min-height: 56px;
+  }
+  nav button:active, .level-btn:active, .small-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  nav button.active, .level-btn.active { outline: 4px solid var(--ink); }
+  .cat-letters { background: var(--accent1); }
+  .cat-colors  { background: var(--accent2); }
+  .cat-animals { background: var(--accent5); }
+  .cat-numbers { background: var(--accent4); }
+  .cat-shapes  { background: #ff922b; }
+  .cat-food    { background: #e64980; }
+  .cat-scenes  { background: var(--accent6); }
+  .cat-play    { background: var(--accent3); color: var(--ink); }
+  .level-btn   { background: #adb5bd; font-size: clamp(1rem, 3vw, 1.4rem); min-width: 0; }
+  .level-btn.active { background: var(--accent4); }
+  .small-btn   { background: var(--accent4); font-size: clamp(1rem, 3vw, 1.3rem); min-width: 0; min-height: 48px; padding: 10px 18px; }
+
+  main { padding: 10px 16px 40px; max-width: 1000px; margin: 0 auto; }
+  .section-title { text-align: center; font-size: clamp(1.2rem, 3vw, 1.5rem); margin: 6px 0 14px; }
+  .hidden { display: none !important; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 14px;
+  }
+  .tile {
+    background: var(--card);
+    border-radius: 28px;
+    padding: 18px 8px 14px;
+    text-align: center;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: transform 0.1s;
+    overflow: hidden;
+  }
+  .tile:active { transform: scale(0.94); }
+  .tile .emoji { font-size: clamp(3rem, 10vw, 4.5rem); line-height: 1.1; word-break: break-all; }
+  .tile .emoji.small { font-size: 1.3rem; line-height: 1.4; }
+  .tile .word { font-size: clamp(1.3rem, 4vw, 1.8rem); font-weight: bold; margin-top: 6px; }
+  .tile .sub { font-size: 1rem; color: #777; }
+  .tile.swatch-tile { padding: 0; }
+  .tile.swatch-tile .swatch { height: 110px; }
+  .tile.swatch-tile .word { padding: 10px 0 4px; }
+  .tile.swatch-tile .sub { padding-bottom: 14px; }
+  .letter-title { color: var(--accent1); font-size: 2.4rem; }
+  .number-title { color: var(--accent4); font-size: 2.6rem; }
+
+  .game-box {
+    background: var(--card);
+    border-radius: 32px;
+    padding: 24px 16px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  }
+  #display { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .big-pic { font-size: clamp(6rem, 22vw, 9rem); line-height: 1.1; }
+  .big-word { font-size: clamp(1.6rem, 5vw, 2.2rem); font-weight: bold; color: var(--accent4); margin-top: 6px; }
+  .prompt-btn {
+    font-family: inherit;
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    background: var(--accent3);
+    color: var(--ink);
+    border: none;
+    border-radius: 999px;
+    padding: 14px 30px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.15);
+    margin-top: 10px;
+    min-height: 56px;
+  }
+  .prompt-btn:active { transform: translateY(4px); }
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 22px;
+  }
+  .choice {
+    background: #f4f1ff;
+    border-radius: 28px;
+    padding: 22px 10px;
+    font-size: clamp(3.2rem, 13vw, 5.5rem);
+    cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.1);
+    transition: transform 0.1s, background 0.2s;
+    line-height: 1.2;
+  }
+  .choice.text { font-weight: bold; color: var(--ink); font-size: clamp(3.5rem, 14vw, 6rem); }
+  .choice:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
+  .choice.right { background: #b2f2bb; }
+  .choice.wrong { background: #ffc9c9; animation: shake 0.35s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .stars { font-size: 2rem; letter-spacing: 4px; min-height: 2.4rem; margin-top: 16px; }
+  .celebrate { font-size: clamp(2rem, 7vw, 3rem); min-height: 3.5rem; }
+  .score { margin-top: 10px; font-size: 1.4rem; }
+  .back-note { text-align: center; color: #888; font-size: 1rem; margin-top: 14px; }
+  .footer-tip { text-align: center; font-size: .95rem; color: #999; padding: 20px; }
+
+  /* Scenes */
+  .player-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
+  .player-title { font-size: clamp(1.3rem, 4vw, 1.8rem); font-weight: bold; color: var(--accent6); }
+  .progress { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; background: #ddd; }
+  .dot.done { background: var(--accent5); }
+  .dot.now { background: var(--accent3); transform: scale(1.3); }
+  .bubble {
+    background: #e7fdf6;
+    border-radius: 28px;
+    padding: 18px 20px;
+    margin: 0 auto;
+    max-width: 640px;
+    position: relative;
+  }
+  .who { font-size: 1.1rem; font-weight: bold; color: var(--accent6); margin-bottom: 4px; }
+  .line { font-size: clamp(1.4rem, 4.5vw, 2rem); line-height: 1.3; }
+  .scene-choice { font-size: 1rem; padding: 18px 8px; }
+  .scene-choice .ch-e { font-size: clamp(2.8rem, 10vw, 4.2rem); line-height: 1.2; }
+  .scene-choice .ch-t { font-size: clamp(1.1rem, 3.5vw, 1.5rem); font-weight: bold; color: var(--ink); margin-top: 6px; }
+  .finish-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .choice.wrong { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <h2>🌈 Little Words 🌈</h2>
+  <p>Tap the big button to start.<br>Sound will play for the words.</p>
+  <button id="start-btn">Start!</button>
+</div>
+
+<header>
+  <h1>🌈 Little Words 🌈</h1>
+  <p>For ages 0–6</p>
+</header>
+
+<nav id="nav">
+  <button class="cat-letters" data-view="letters">ABC</button>
+  <button class="cat-colors"  data-view="colors">Colors</button>
+  <button class="cat-animals" data-view="animals">Animals</button>
+  <button class="cat-numbers" data-view="numbers">123</button>
+  <button class="cat-shapes"  data-view="shapes">Shapes</button>
+  <button class="cat-food"    data-view="food">Food</button>
+  <button class="cat-scenes"  data-view="scenes">Stories</button>
+  <button class="cat-play"    data-view="play">Play!</button>
+</nav>
+
+<main>
+  <section id="view-letters" class="view">
+    <p class="section-title">Tap a letter to hear it!</p>
+    <div id="letters-grid" class="grid"></div>
+  </section>
+
+  <section id="view-colors" class="view hidden">
+    <p class="section-title">Tap a color to hear its name!</p>
+    <div id="colors-grid" class="grid"></div>
+  </section>
+
+  <section id="view-animals" class="view hidden">
+    <p class="section-title">Tap an animal to hear its sound!</p>
+    <div id="animals-grid" class="grid"></div>
+  </section>
+
+  <section id="view-numbers" class="view hidden">
+    <p class="section-title">Tap a number and we will count together!</p>
+    <div id="numbers-grid" class="grid"></div>
+  </section>
+
+  <section id="view-shapes" class="view hidden">
+    <p class="section-title">Tap a shape to hear its name!</p>
+    <div id="shapes-grid" class="grid"></div>
+  </section>
+
+  <section id="view-food" class="view hidden">
+    <p class="section-title">Tap a food to hear its name!</p>
+    <div id="food-grid" class="grid"></div>
+  </section>
+
+  <!-- STORIES: everyday conversations, shopping, games -->
+  <section id="view-scenes" class="view hidden">
+    <div id="scene-list">
+      <p class="section-title">Pick a story and practice real-life English!</p>
+      <div id="scene-grid" class="grid"></div>
+    </div>
+
+    <div id="scene-player" class="hidden">
+      <div class="player-top">
+        <button class="small-btn" id="sc-back">⬅ Stories</button>
+        <span class="player-title" id="sc-title"></span>
+      </div>
+      <div class="game-box">
+        <div class="progress" id="sc-progress"></div>
+        <div class="bubble">
+          <div class="who" id="sc-who"></div>
+          <p class="line" id="sc-line"></p>
+        </div>
+        <button class="prompt-btn" id="sc-listen">🔊 Listen again</button>
+        <div class="choices" id="sc-choices"></div>
+        <div class="celebrate" id="sc-celebrate"></div>
+        <div class="finish-row hidden" id="sc-finish">
+          <button class="small-btn" id="sc-again">🔁 Play again</button>
+          <button class="small-btn" id="sc-more">📚 More stories</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-play" class="view hidden">
+    <div class="levels" id="levels">
+      <button class="level-btn" data-level="1">🌱 Ages 0–2<br>Pictures</button>
+      <button class="level-btn" data-level="2">🌼 Ages 3–4<br>Letters &amp; Numbers</button>
+      <button class="level-btn" data-level="3">🌳 Ages 5–6<br>First Letter</button>
+    </div>
+    <div class="game-box">
+      <p class="section-title" id="instruction"></p>
+      <div id="display"></div>
+      <button class="prompt-btn" id="prompt-btn">🔊 Listen again</button>
+      <div class="choices" id="choices"></div>
+      <div class="stars" id="stars"></div>
+      <div class="celebrate" id="celebrate"></div>
+      <div class="score">Score: <span id="score">0</span></div>
+    </div>
+    <p class="back-note">Changing the level starts a new score.</p>
+  </section>
+</main>
+
+<p class="footer-tip">Tip: turn the sound up! Every word is spoken out loud.</p>
+
+<script>
+/* ===========================================================
+   CONTENT
+   =========================================================== */
+
+const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+const LETTERS = [
+  ["A","Apple","🍎"],["B","Ball","⚽"],["C","Cat","🐱"],["D","Dog","🐶"],["E","Egg","🥚"],
+  ["F","Fish","🐟"],["G","Grapes","🍇"],["H","Hat","🎩"],["I","Ice cream","🍦"],["J","Juice","🧃"],
+  ["K","Kite","🪁"],["L","Lion","🦁"],["M","Moon","🌙"],["N","Nest","🪹"],["O","Octopus","🐙"],
+  ["P","Pig","🐷"],["Q","Queen","👸"],["R","Rabbit","🐰"],["S","Sun","☀️"],["T","Tree","🌳"],
+  ["U","Umbrella","☂️"],["V","Van","🚐"],["W","Whale","🐳"],["X","Xylophone","🎶"],["Y","Yo-yo","🪀"],["Z","Zebra","🦓"]
+];
+
+const COLORS = [
+  { name: "Red",    hex: "#ff4d4d", emoji: "🍓" },
+  { name: "Blue",   hex: "#4d79ff", emoji: "🫐" },
+  { name: "Yellow", hex: "#ffd43b", emoji: "🍋" },
+  { name: "Green",  hex: "#37b24d", emoji: "🐸" },
+  { name: "Orange", hex: "#ff922b", emoji: "🍊" },
+  { name: "Purple", hex: "#9c36b5", emoji: "🍇" },
+  { name: "Pink",   hex: "#ff8fb1", emoji: "🌸" },
+  { name: "Brown",  hex: "#8d5a2b", emoji: "🐻" },
+  { name: "Black",  hex: "#222222", emoji: "🐈‍⬛" },
+  { name: "White",  hex: "#ffffff", emoji: "☁️" },
+  { name: "Gray",   hex: "#999999", emoji: "🐘" }
+];
+
+// [name, emoji, sound]
+const ANIMALS = [
+  ["Cow","🐮","Moo!"],["Duck","🦆","Quack!"],["Horse","🐴","Neigh!"],["Sheep","🐑","Baa!"],
+  ["Frog","🐸","Ribbit!"],["Bird","🐦","Tweet!"],["Monkey","🐵","Ooh ooh!"],["Elephant","🐘","Toot!"],
+  ["Bear","🐻","Grr!"],["Chicken","🐔","Cluck!"],["Bee","🐝","Buzz!"],["Snake","🐍","Hiss!"],
+  ["Turtle","🐢","Hmm!"],["Penguin","🐧","Honk!"],["Dinosaur","🦖","Roar!"],
+  ["Butterfly","🦋","Flap flap!"],["Owl","🦉","Hoo hoo!"],["Shark","🦈","Chomp!"]
+];
+
+const NUM_WORDS = ["One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten"];
+const NUM_PIC   = ["🍎","⭐","🌈","🐟","🎈","🌸","🐸","🚗","🍦","🐶"];
+
+const SHAPES = [
+  ["Circle","⚫"],["Square","🟥"],["Triangle","🔺"],["Star","⭐"],["Heart","❤️"],
+  ["Diamond","🔷"],["Rectangle","🟦"],["Oval","🥚"],["Crescent moon","🌙"],["Flower","🌼"]
+];
+
+const FOOD = [
+  ["Apple","🍎"],["Banana","🍌"],["Bread","🍞"],["Cake","🍰"],["Carrot","🥕"],
+  ["Cookie","🍪"],["Milk","🥛"],["Pizza","🍕"],["Water","💧"],["Watermelon","🍉"],
+  ["Cheese","🧀"],["Corn","🌽"],["Pancake","🥞"],["Strawberry","🍓"],["Honey","🍯"]
+];
+
+const PRAISE = ["Great job!", "Yes! Super!", "You did it!", "Wonderful!", "Amazing!"];
+
+const INSTRUCTIONS = {
+  1: "Listen, then tap the right picture!",
+  2: "Listen, then tap the letter or number!",
+  3: "Look at the picture. What letter does it start with?"
+};
+
+/*
+  STORIES
+  Each story is a list of steps. A step is [who, line, options].
+  Each option is [emoji, text, ok]. ok = 1 means a good answer.
+  To add a story, copy one block and change the words.
+  Keep lines short. Use simple words for ages 0–3.
+*/
+const SCENES = [
+  {
+    id: "morning", title: "Good Morning", icon: "🌅", ages: "Ages 0–6",
+    steps: [
+      ["👩 Mom", "Good morning! How are you?", [["😊","I'm happy!",1],["😴","I'm sleepy.",1],["😢","I'm sad.",1]]],
+      ["👩 Mom", "What do you want for breakfast?", [["🥣","Cereal, please!",1],["🍞","Bread, please!",1],["🍌","Banana, please!",1],["🐟","Fish!",0]]],
+      ["👨 Dad", "Please say thank you when you get it.", [["🙏","Thank you!",1],["🙅","No!",0]]],
+      ["👩 Mom", "Have a great day! Bye!", [["👋","Bye, Mom!",1],["🛏️","I'm sleeping.",0]]]
+    ]
+  },
+  {
+    id: "shop", title: "At the Shop", icon: "🛒", ages: "Ages 2–6",
+    steps: [
+      ["🧑‍🍳 Shopkeeper", "Hello! Welcome to our shop. What would you like?", [["🍎","Apple, please!",1],["🥛","Milk, please!",1],["🚗","Car, please!",0]]],
+      ["🧑‍🍳 Shopkeeper", "Here is your milk. Anything else?", [["🍪","Cookie, please!",1],["👋","No, thank you!",1],["🐘","Elephant!",0]]],
+      ["🧑‍🍳 Shopkeeper", "That is two dollars, please.", [["💵","Here is the money!",1],["🎈","Balloon!",0]]],
+      ["🧑‍🍳 Shopkeeper", "Thank you! Have a nice day!", [["😊","Thank you! Bye!",1],["😡","I don't want it!",0]]]
+    ]
+  },
+  {
+    id: "play", title: "Let's Play", icon: "🎮", ages: "Ages 2–6",
+    steps: [
+      ["🧒 Friend", "Do you want to play with me?", [["✅","Yes, let's play!",1],["❌","No, thanks.",1]]],
+      ["🧒 Friend", "What game should we play?", [["⚽","Football!",1],["🧩","Puzzle!",1],["🛏️","Sleep!",0]]],
+      ["🧒 Friend", "It's your turn! Throw the ball!", [["🤾","I'm throwing!",1],["😴","I'm sleeping.",0]]],
+      ["🧒 Friend", "You did a great job!", [["🙌","Hooray!",1],["🙅","No thanks.",0]]]
+    ]
+  },
+  {
+    id: "feelings", title: "How Do You Feel?", icon: "💬", ages: "Ages 3–6",
+    steps: [
+      ["👩‍🏫 Teacher", "Good morning, class! How do you feel today?", [["😊","I feel happy.",1],["😴","I feel sleepy.",1],["😢","I feel sad.",1]]],
+      ["👩‍🏫 Teacher", "Oh, you look sad. Do you want a hug?", [["🤗","Yes, please!",1],["👍","I'm okay, thanks.",1],["🙅","No!",0]]],
+      ["👩‍🏫 Teacher", "Can you say how you feel now?", [["😀","I feel great!",1],["😠","I feel angry!",1],["😭","I don't like this!",0]]]
+    ]
+  },
+  {
+    id: "weather", title: "The Weather", icon: "🌦️", ages: "Ages 2–6",
+    steps: [
+      ["🧒 Friend", "What's the weather like today?", [["☀️","It's sunny!",1],["🌧️","It's rainy!",1],["❄️","It's snowy!",1]]],
+      ["👩 Mom", "It's raining. What should you take?", [["☂️","An umbrella!",1],["🧥","A warm coat!",1],["🩱","My swimsuit!",0]]],
+      ["👩 Mom", "Let's go outside now!", [["🏃","Yes, let's go!",1],["🛏️","I want to sleep!",0]]]
+    ]
+  },
+  {
+    id: "bedtime", title: "Bedtime", icon: "🌙", ages: "Ages 0–6",
+    steps: [
+      ["👩 Mom", "It's bedtime! Let's brush your teeth.", [["🪥","Okay, Mom!",1],["🍭","More candy!",0]]],
+      ["👩 Mom", "Put on your pajamas.", [["👕","Pajamas on!",1],["👟","Shoes on!",0]]],
+      ["👨 Dad", "Goodnight! Sweet dreams.", [["🌙","Goodnight, Dad!",1],["📺","TV, please!",0]]]
+    ]
+  },
+  {
+    id: "simon", title: "Simon Says", icon: "🎯", ages: "Ages 3–6",
+    steps: [
+      ["🧑‍🏫 Simon", "Simon says touch your nose!", [["👃","Nose",1],["👂","Ears",0],["🦶","Feet",0]]],
+      ["🧑‍🏫 Simon", "Simon says clap your hands!", [["👏","Clap!",1],["🦵","Knees!",0],["🙅","Stop!",0]]],
+      ["🧑‍🏫 Simon", "Touch your head!", [["🙅","Don't move!",1],["🤚","Touch my head!",0]]],
+      ["🧑‍🏫 Simon", "Simon says jump!", [["🦘","Jump!",1],["🧘","Sit down!",0]]],
+      ["🧑‍🏫 Simon", "Simon says turn around!", [["🔄","Turn around!",1],["🛑","Stop!",0]]]
+    ]
+  }
+];
+
+/* One pool of words with pictures, unique by word and by emoji */
+function uniqueBy(arr, ...keys) {
+  const seen = keys.map(() => new Set());
+  return arr.filter(item => {
+    const ok = keys.every((k, i) => !seen[i].has(k(item)));
+    if (ok) keys.forEach((k, i) => seen[i].add(k(item)));
+    return ok;
+  });
+}
+
+const PICS = uniqueBy([
+  ...LETTERS.map(([, w, e]) => ({ word: w, emoji: e })),
+  ...ANIMALS.map(([w, e]) => ({ word: w, emoji: e })),
+  ...FOOD.map(([w, e]) => ({ word: w, emoji: e })),
+  { word: "Star", emoji: "⭐" }, { word: "Heart", emoji: "❤️" }
+], p => p.word, p => p.emoji);
+
+/* ===========================================================
+   HELPERS
+   =========================================================== */
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const sample = (arr, k) => shuffle([...arr]).slice(0, k);
+
+/* ===========================================================
+   SPEECH AND SOUND
+   iPad Safari only allows sound after a tap, so the start screen
+   and every tap count as that first tap.
+   =========================================================== */
+
+let voice = null;
+function pickVoice() {
+  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  voice = voices.find(v => /en[-_]US/i.test(v.lang) && /samantha|female|google us/i.test(v.name))
+       || voices.find(v => /^en[-_]US/i.test(v.lang))
+       || voices.find(v => /^en/i.test(v.lang))
+       || null;
+}
+if (window.speechSynthesis) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
+/* queue:true adds to the spoken queue instead of interrupting */
+function speak(text, { rate = 0.85, queue = false } = {}) {
+  if (!("speechSynthesis" in window)) return;
+  if (!queue) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US";
+  u.rate = rate;
+  u.pitch = 1.15;
+  if (voice) u.voice = voice;
+  speechSynthesis.speak(u);
+}
+
+let audioCtx = null;
+function beep(freq = 660, dur = 0.12) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch (e) { /* audio not available: fail silently */ }
+}
+
+/* ===========================================================
+   BROWSE SECTIONS
+   =========================================================== */
+
+function makeTile({ emoji, title, sub = "", speech, titleClass = "", emojiClass = "" }) {
+  const el = document.createElement("div");
+  el.className = "tile";
+  el.setAttribute("role", "button");
+  el.innerHTML = `<div class="emoji ${emojiClass}">${emoji}</div>
+                  <div class="word ${titleClass}">${title}</div>
+                  ${sub ? `<div class="sub">${sub}</div>` : ""}`;
+  el.addEventListener("click", () => { beep(); speech(); });
+  return el;
+}
+
+function fillGrid(id, items) {
+  const grid = document.getElementById(id);
+  grid.innerHTML = "";
+  items.forEach(item => grid.appendChild(item));
+}
+
+function countUp(n) {
+  speechSynthesis.cancel();
+  for (let i = 1; i <= n; i++) {
+    speak(i === n ? `${i}! ${NUM_WORDS[n - 1]}!` : `${i}`, { rate: 0.9, queue: true });
+  }
+}
+
+function buildSections() {
+  fillGrid("letters-grid", LETTERS.map(([letter, word, emoji]) =>
+    makeTile({
+      emoji, title: letter, sub: word, titleClass: "letter-title",
+      speech: () => speak(`${letter}. ${letter} is for ${word}.`, { rate: 0.8 })
+    })
+  ));
+
+  fillGrid("colors-grid", COLORS.map(c => {
+    const el = document.createElement("div");
+    el.className = "tile swatch-tile";
+    el.setAttribute("role", "button");
+    el.innerHTML = `<div class="swatch" style="background:${c.hex}; ${c.hex === "#ffffff" ? "border-bottom:2px solid #eee" : ""}"></div>
+                    <div class="word">${c.name}</div>
+                    <div class="sub">${c.emoji}</div>`;
+    el.addEventListener("click", () => { beep(); speak(`${c.name}! ${c.name}.`); });
+    return el;
+  }));
+
+  fillGrid("animals-grid", ANIMALS.map(([name, emoji, sound]) =>
+    makeTile({
+      emoji, title: name, sub: sound,
+      speech: () => speak(`${name}! The ${name.toLowerCase()} says ${sound}`)
+    })
+  ));
+
+  fillGrid("numbers-grid", NUM_WORDS.map((word, i) => {
+    const n = i + 1;
+    return makeTile({
+      emoji: NUM_PIC[i].repeat(n), title: String(n), sub: word,
+      titleClass: "number-title", emojiClass: "small",
+      speech: () => countUp(n)
+    });
+  }));
+
+  fillGrid("shapes-grid", SHAPES.map(([name, emoji]) =>
+    makeTile({ emoji, title: name, speech: () => speak(`This is a ${name.toLowerCase()}.`) })
+  ));
+
+  fillGrid("food-grid", FOOD.map(([name, emoji]) =>
+    makeTile({ emoji, title: name, speech: () => speak(`${name}! Yummy! Do you like ${name.toLowerCase()}?`) })
+  ));
+
+  fillGrid("scene-grid", SCENES.map(sc =>
+    makeTile({ emoji: sc.icon, title: sc.title, sub: sc.ages, speech: () => openScene(sc) })
+  ));
+}
+
+/* ===========================================================
+   STORIES (everyday conversations, shopping, games)
+   =========================================================== */
+
+let sceneRun = null;   // { sc, i, locked }
+let sceneTimer = null;
+
+function openScene(sc) {
+  clearTimeout(sceneTimer);
+  sceneRun = { sc, i: 0, locked: false };
+  document.getElementById("scene-list").classList.add("hidden");
+  document.getElementById("scene-player").classList.remove("hidden");
+  document.getElementById("sc-title").textContent = sc.title;
+  document.getElementById("sc-finish").classList.add("hidden");
+  renderStep();
+}
+
+function showSceneList() {
+  clearTimeout(sceneTimer);
+  sceneRun = null;
+  document.getElementById("scene-player").classList.add("hidden");
+  document.getElementById("scene-list").classList.remove("hidden");
+}
+
+function renderStep() {
+  clearTimeout(sceneTimer);
+  const { sc, i } = sceneRun;
+  if (i >= sc.steps.length) return finishScene();
+
+  const [who, line, opts] = sc.steps[i];
+  const options = shuffle(opts.map(([e, t, ok]) => ({ e, t, ok: !!ok })));
+
+  document.getElementById("sc-progress").innerHTML = sc.steps.map((_, k) =>
+    `<span class="dot ${k < i ? "done" : k === i ? "now" : ""}"></span>`).join("");
+  document.getElementById("sc-who").textContent = who;
+  document.getElementById("sc-line").textContent = line;
+  document.getElementById("sc-celebrate").textContent = "";
+
+  const box = document.getElementById("sc-choices");
+  box.innerHTML = "";
+  options.forEach(o => {
+    const b = document.createElement("div");
+    b.className = "choice scene-choice";
+    b.setAttribute("role", "button");
+    b.innerHTML = `<div class="ch-e">${o.e}</div><div class="ch-t">${o.t}</div>`;
+    b.addEventListener("click", () => chooseScene(b, o));
+    box.appendChild(b);
+  });
+
+  sceneTimer = setTimeout(() => speak(line), 300);
+}
+
+function chooseScene(el, o) {
+  if (!sceneRun || sceneRun.locked) return;
+  beep();
+  if (o.ok) {
+    sceneRun.locked = true;
+    el.classList.add("right");
+    document.getElementById("sc-celebrate").textContent = pick(PRAISE);
+    speak(`${pick(PRAISE)} ${o.t}`);
+    sceneTimer = setTimeout(() => {
+      sceneRun.i++;
+      sceneRun.locked = false;
+      renderStep();
+    }, 2200);
+  } else {
+    el.classList.add("wrong");
+    setTimeout(() => el.classList.remove("wrong"), 450);
+    speak("Hmm, try another one.");
+  }
+}
+
+function finishScene() {
+  sceneRun.locked = true;
+  document.getElementById("sc-progress").innerHTML = sceneRun.sc.steps.map(() =>
+    `<span class="dot done"></span>`).join("");
+  document.getElementById("sc-who").textContent = `${sceneRun.sc.icon} ${sceneRun.sc.title}`;
+  document.getElementById("sc-line").textContent = "You did it!";
+  document.getElementById("sc-choices").innerHTML = "";
+  document.getElementById("sc-celebrate").textContent = "🎉 Story complete! 🎉";
+  document.getElementById("sc-finish").classList.remove("hidden");
+  speak(`Great job! You finished ${sceneRun.sc.title}!`);
+}
+
+document.getElementById("sc-back").addEventListener("click", showSceneList);
+document.getElementById("sc-more").addEventListener("click", showSceneList);
+document.getElementById("sc-again").addEventListener("click", () => {
+  if (sceneRun) openScene(sceneRun.sc);
+});
+document.getElementById("sc-listen").addEventListener("click", () => {
+  if (sceneRun && sceneRun.sc.steps[sceneRun.i]) speak(sceneRun.sc.steps[sceneRun.i][1]);
+});
+
+/* ===========================================================
+   PLAY GAME
+   Level 1 (0-2): find the picture named aloud
+   Level 2 (3-4): find the letter or number named aloud
+   Level 3 (5-6): see a picture, pick its first letter
+   =========================================================== */
+
+let level = 1;
+let current = null;
+let score = 0;
+let streak = 0;
+let nextTimer = null;
+
+function pictureQuestion() {
+  const target = pick(PICS);
+  const decoys = sample(PICS.filter(p => p !== target), 3);
+  return {
+    speak: `Find the ${target.word.toLowerCase()}!`,
+    feedback: `That is a ${target.word.toLowerCase()}!`,
+    display: "",
+    textChoices: false,
+    options: shuffle([target, ...decoys]).map(p => ({ label: p.emoji, correct: p === target }))
+  };
+}
+
+function letterOrNumberQuestion() {
+  if (Math.random() < 0.5) {
+    const L = pick(ALPHA);
+    return {
+      speak: `Find the letter ${L}!`,
+      feedback: `That is the letter ${L}!`,
+      display: "",
+      textChoices: true,
+      options: shuffle([L, ...sample(ALPHA.filter(x => x !== L), 3)])
+        .map(x => ({ label: x, correct: x === L }))
+    };
+  }
+  const n = 1 + Math.floor(Math.random() * 10);
+  const others = sample([1,2,3,4,5,6,7,8,9,10].filter(x => x !== n), 3);
+  return {
+    speak: `Find the number ${NUM_WORDS[n - 1]}!`,
+    feedback: `That is ${NUM_WORDS[n - 1]}!`,
+    display: "",
+    textChoices: true,
+    options: shuffle([n, ...others]).map(x => ({ label: String(x), correct: x === n }))
+  };
+}
+
+function firstLetterQuestion() {
+  const target = pick(PICS);
+  const first = target.word[0].toUpperCase();
+  const others = sample(ALPHA.filter(x => x !== first), 3);
+  return {
+    speak: `What letter does ${target.word.toLowerCase()} start with?`,
+    feedback: `${target.word} starts with ${first}!`,
+    display: `<div class="big-pic">${target.emoji}</div><div class="big-word">${target.word}</div>`,
+    textChoices: true,
+    options: shuffle([first, ...others]).map(x => ({ label: x, correct: x === first }))
+  };
+}
+
+const QUESTION_MAKERS = { 1: pictureQuestion, 2: letterOrNumberQuestion, 3: firstLetterQuestion };
+
+function newRound() {
+  clearTimeout(nextTimer);
+  const q = QUESTION_MAKERS[level]();
+  q.done = false;
+  current = q;
+
+  document.getElementById("instruction").textContent = INSTRUCTIONS[level];
+  document.getElementById("display").innerHTML = q.display;
+  document.getElementById("celebrate").textContent = "";
+
+  const box = document.getElementById("choices");
+  box.innerHTML = "";
+  q.options.forEach(opt => {
+    const b = document.createElement("div");
+    b.className = "choice" + (q.textChoices ? " text" : "");
+    b.textContent = opt.label;
+    b.setAttribute("role", "button");
+    b.addEventListener("click", () => onChoice(b, opt));
+    box.appendChild(b);
+  });
+
+  nextTimer = setTimeout(() => speak(q.speak), 400);
+}
+
+function onChoice(el, opt) {
+  if (!current || current.done) return;
+  beep();
+
+  if (opt.correct) {
+    current.done = true;
+    el.classList.add("right");
+    score++;
+    streak++;
+    document.getElementById("score").textContent = score;
+    document.getElementById("stars").textContent = "⭐".repeat(Math.min(streak, 5));
+    const praise = pick(PRAISE);
+    document.getElementById("celebrate").textContent = praise;
+    speak(`${praise} ${current.feedback}`);
+    nextTimer = setTimeout(newRound, 2600);
+  } else {
+    el.classList.add("wrong");
+    setTimeout(() => el.classList.remove("wrong"), 450);
+    streak = 0;
+    document.getElementById("stars").textContent = "";
+    speak("Try again!");
+    setTimeout(() => { if (current && !current.done) speak(current.speak); }, 1500);
+  }
+}
+
+function setLevel(l) {
+  level = l;
+  score = 0;
+  streak = 0;
+  document.getElementById("score").textContent = "0";
+  document.getElementById("stars").textContent = "";
+  document.querySelectorAll(".level-btn").forEach(b =>
+    b.classList.toggle("active", Number(b.dataset.level) === l));
+  newRound();
+}
+
+document.querySelectorAll(".level-btn").forEach(b =>
+  b.addEventListener("click", () => setLevel(Number(b.dataset.level))));
+
+document.getElementById("prompt-btn").addEventListener("click", () => {
+  if (current) speak(current.speak);
+});
+
+/* ===========================================================
+   NAVIGATION
+   =========================================================== */
+
+const VIEWS = ["letters", "colors", "animals", "numbers", "shapes", "food", "scenes", "play"];
+
+function showView(name, { silent = false } = {}) {
+  VIEWS.forEach(v => document.getElementById(`view-${v}`).classList.toggle("hidden", v !== name));
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+
+  if (name !== "scenes") { clearTimeout(sceneTimer); }
+  if (name === "scenes") { showSceneList(); }
+  if (name === "play") {
+    if (!current) setLevel(level);
+    else document.getElementById("levels").scrollIntoView({ behavior: "smooth" });
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  const titles = { play: "Let's play!", scenes: "Let's practice English stories!" };
+  if (!silent) speak(titles[name] || name.charAt(0).toUpperCase() + name.slice(1), { rate: 0.9 });
+}
+
+document.querySelectorAll("#nav button").forEach(b =>
+  b.addEventListener("click", () => showView(b.dataset.view)));
+
+/* ===========================================================
+   START SCREEN and INIT
+   =========================================================== */
+
+document.getElementById("start-btn").addEventListener("click", () => {
+  beep(880, 0.15);
+  speak("Hello! Let's learn English together!", { rate: 0.9 });
+  document.getElementById("start").classList.add("hidden");
+});
+
+buildSections();
+showView("letters", { silent: true });
+document.querySelectorAll(".level-btn")[0].classList.add("active");
+</script>
+
+</body>
+</html>
