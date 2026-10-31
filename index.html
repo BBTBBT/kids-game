@@ -62,6 +62,21 @@
   }
   #start-btn:active { transform: translateY(5px); box-shadow: 0 3px 0 rgba(0,0,0,0.15); }
 
+  /* Sound notice: explains what is wrong with sound on this device */
+  #sound-note {
+    margin: 0 auto 10px;
+    max-width: 640px;
+    background: #fff3bf;
+    border: 3px solid #fab005;
+    color: #5c4300;
+    border-radius: 20px;
+    padding: 12px 16px;
+    font-size: clamp(1rem, 3vw, 1.2rem);
+    text-align: center;
+    line-height: 1.4;
+  }
+  #sound-note.hidden { display: none; }
+
   /* Caption: shows every spoken line on screen as well */
   #caption {
     position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
@@ -112,6 +127,7 @@
   .level-btn   { background: #adb5bd; font-size: clamp(1rem, 3vw, 1.4rem); min-width: 0; }
   .level-btn.active { background: var(--accent4); }
   .small-btn   { background: var(--accent4); font-size: clamp(1rem, 3vw, 1.3rem); min-width: 0; min-height: 48px; padding: 10px 18px; }
+  .test-row { text-align: center; margin-top: 10px; }
 
   main { padding: 10px 16px 20px; max-width: 1000px; margin: 0 auto; }
   .section-title { text-align: center; font-size: clamp(1.2rem, 3vw, 1.5rem); margin: 6px 0 14px; }
@@ -236,7 +252,10 @@
 <header>
   <h1>🌈 Little Words 🌈</h1>
   <p>For ages 0–6</p>
+  <div class="test-row"><button class="small-btn" id="test-btn">🔈 Test sound</button></div>
 </header>
+
+<div id="sound-note" class="hidden" role="status"></div>
 
 <nav id="nav">
   <button class="cat-letters" data-view="letters">ABC</button>
@@ -327,7 +346,7 @@
   </section>
 </main>
 
-<p class="footer-tip">Tip: turn the sound up! Every word is spoken out loud and shown at the bottom.</p>
+<p class="footer-tip">Every word is spoken aloud and also shown at the bottom of the screen.</p>
 
 <div id="caption" aria-live="polite"></div>
 
@@ -493,16 +512,19 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const sample = (arr, k) => shuffle([...arr]).slice(0, k);
 
 /* ===========================================================
-   SPEECH, CAPTIONS AND SOUND
+   SPEECH, CAPTIONS, SOUND NOTICES
    Works on iPhone, iPad, and Android (Chrome, Samsung Internet).
-   Phones only allow sound after a tap, so the start screen
-   and every tap count as that first tap.
+   Every word is always shown in the caption, even with no sound.
    =========================================================== */
 
 const synth = ("speechSynthesis" in window) ? window.speechSynthesis : null;
 const captionEl = document.getElementById("caption");
+const noteEl = document.getElementById("sound-note");
 
 let voice = null;
+let speechStarted = false;   // becomes true once the phone has spoken at least once
+let lastError = "";
+
 function findVoice() {
   if (!synth) return null;
   const voices = synth.getVoices();
@@ -517,41 +539,76 @@ if (synth) {
   synth.onvoiceschanged = () => { voice = findVoice(); };
 }
 
-/* Android sometimes drops an utterance that is spoken right after cancel(),
-   and sometimes garbage-collects it before it finishes. Both are avoided by
-   a short pause and by keeping references to active utterances. */
-const activeUtterances = new Set();
+function showNote(msg) {
+  noteEl.textContent = msg;
+  noteEl.classList.remove("hidden");
+}
+function hideNote() {
+  noteEl.classList.add("hidden");
+}
 
-function speakNow(text, rate, pitch) {
+/* A short explanation of why sound is missing, based on what the phone reports */
+function diagnoseSilence() {
+  if (!synth) {
+    return "This app cannot speak in this browser. Please open it in Chrome, not in WeChat or another in-app browser. Captions still show every word.";
+  }
+  const count = synth.getVoices().length;
+  if (count === 0) {
+    return "This phone has no speech voices. Please install Google Text-to-speech from the app store, then choose it in Settings (search for 'Text-to-speech'), and download English (United States). Captions still show every word.";
+  }
+  if (lastError === "not-allowed") {
+    return "The phone blocked sound. Tap the Test sound button once, then try again.";
+  }
+  if (lastError === "language-unavailable" || lastError === "voice-unavailable") {
+    return "This phone does not have an English voice. Please download English (United States) in Settings > Text-to-speech.";
+  }
+  return "No sound is coming from the phone. Check that the volume is up, the phone is not on silent or Do Not Disturb, and that the Text-to-speech engine is set to Google (or your phone's own voice). Captions still show every word.";
+}
+
+/* Speak one utterance. On an error, retry once with the phone's default voice. */
+function speakNow(text, rate, pitch, retry = true) {
   if (!synth) return;
-  if (!voice) voice = findVoice();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US";
   u.rate = rate;
   u.pitch = pitch;
-  if (voice) u.voice = voice;
-  activeUtterances.add(u);
-  const done = () => activeUtterances.delete(u);
-  u.onend = done;
-  u.onerror = done;
+  if (retry && voice) { u.lang = "en-US"; u.voice = voice; }
+  else if (retry) { u.lang = "en-US"; }
+
+  u.onstart = () => { speechStarted = true; lastError = ""; hideNote(); };
+  u.onerror = (e) => {
+    const err = e.error || "unknown";
+    // Stopping speech on purpose is not a problem
+    if (err === "canceled" || err === "interrupted") return;
+    lastError = err;
+    if (retry) {
+      speakNow(text, rate, pitch, false); // retry with no voice or language set
+    } else {
+      showNote(diagnoseSilence());
+    }
+  };
   synth.speak(u);
   if (synth.paused) synth.resume();
 }
 
-/* text is always shown in the caption, even when sound fails */
-function showCaption(text) {
-  captionEl.textContent = text;
-}
-
+/* Shows the caption, then speaks. Stops the previous line first unless queued. */
 function speak(text, { rate = 0.85, queue = false } = {}) {
-  showCaption(text);
-  if (!synth) return;
+  captionEl.textContent = text;
+  if (!synth) { showNote(diagnoseSilence()); return; }
   if (queue) {
     speakNow(text, rate, 1.15);
   } else {
     synth.cancel();
+    // Android sometimes drops a line spoken right after cancel(), so wait briefly
     setTimeout(() => speakNow(text, rate, 1.15), 80);
   }
+}
+
+/* Test button and start button: speak a sample, then check that sound started */
+function testSound() {
+  speak("Hello! Sound is on. Let's learn English!", { rate: 0.9 });
+  setTimeout(() => {
+    if (!speechStarted) showNote(diagnoseSilence());
+  }, 2000);
 }
 
 let audioCtx = null;
@@ -593,8 +650,10 @@ function fillGrid(id, items) {
 }
 
 function countUp(n) {
-  if (synth) synth.cancel();
-  showCaption(Array.from({ length: n }, (_, i) => i + 1).join(", ") + "!");
+  const counts = Array.from({ length: n }, (_, i) => i + 1).join(", ");
+  captionEl.textContent = counts + "!";
+  if (!synth) { showNote(diagnoseSilence()); return; }
+  synth.cancel();
   setTimeout(() => {
     for (let i = 1; i <= n; i++) {
       speakNow(i === n ? `${i}! ${NUM_WORDS[n - 1]}!` : `${i}`, 0.9, 1.15);
@@ -903,13 +962,18 @@ document.querySelectorAll("#nav button").forEach(b =>
   b.addEventListener("click", () => showView(b.dataset.view)));
 
 /* ===========================================================
-   START SCREEN and INIT
+   START SCREEN, TEST BUTTON, AND INIT
    =========================================================== */
 
 document.getElementById("start-btn").addEventListener("click", () => {
   beep(880, 0.15);
-  speak("Hello! Let's learn English together!", { rate: 0.9 });
   document.getElementById("start").classList.add("hidden");
+  testSound();
+});
+
+document.getElementById("test-btn").addEventListener("click", () => {
+  beep();
+  testSound();
 });
 
 buildSections();
