@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Little Words">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#fff8e7">
 <title>Little Words (Ages 0–6)</title>
 <style>
@@ -21,9 +22,9 @@
     --accent6: #20c997;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
-    font-family: "Comic Sans MS", "Trebuchet MS", "Arial Rounded MT Bold", system-ui, sans-serif;
+    font-family: "Comic Sans MS", "Trebuchet MS", "Arial Rounded MT Bold", system-ui, -apple-system, "Roboto", sans-serif;
     background: var(--bg);
     color: var(--ink);
     min-height: 100vh;
@@ -33,15 +34,15 @@
     -webkit-touch-callout: none;
     touch-action: manipulation;
     overscroll-behavior-y: none;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 90px env(safe-area-inset-left);
   }
   header { text-align: center; padding: 20px 10px 10px; }
   header h1 { font-size: clamp(2rem, 6vw, 3.2rem); color: var(--accent4); }
   header p { font-size: 1rem; color: #888; margin-top: 4px; }
 
-  /* Tap-to-start screen: needed so iPad Safari allows sound */
+  /* Tap-to-start screen: needed so phones and tablets allow sound */
   #start {
-    position: fixed; inset: 0; z-index: 10;
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 10;
     background: var(--bg);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 24px; padding: 20px; text-align: center;
@@ -60,6 +61,23 @@
     box-shadow: 0 8px 0 rgba(0,0,0,0.15);
   }
   #start-btn:active { transform: translateY(5px); box-shadow: 0 3px 0 rgba(0,0,0,0.15); }
+
+  /* Caption: shows every spoken line on screen as well */
+  #caption {
+    position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 5;
+    background: rgba(45, 42, 74, 0.92);
+    color: #fff;
+    border-radius: 20px;
+    padding: 12px 18px;
+    font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+    text-align: center;
+    min-height: 3.2rem;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
+  #caption:empty { display: none; }
 
   nav, .levels {
     display: flex;
@@ -95,7 +113,7 @@
   .level-btn.active { background: var(--accent4); }
   .small-btn   { background: var(--accent4); font-size: clamp(1rem, 3vw, 1.3rem); min-width: 0; min-height: 48px; padding: 10px 18px; }
 
-  main { padding: 10px 16px 40px; max-width: 1000px; margin: 0 auto; }
+  main { padding: 10px 16px 20px; max-width: 1000px; margin: 0 auto; }
   .section-title { text-align: center; font-size: clamp(1.2rem, 3vw, 1.5rem); margin: 6px 0 14px; }
   .hidden { display: none !important; }
 
@@ -179,9 +197,9 @@
   .celebrate { font-size: clamp(2rem, 7vw, 3rem); min-height: 3.5rem; }
   .score { margin-top: 10px; font-size: 1.4rem; }
   .back-note { text-align: center; color: #888; font-size: 1rem; margin-top: 14px; }
-  .footer-tip { text-align: center; font-size: .95rem; color: #999; padding: 20px; }
+  .footer-tip { text-align: center; font-size: .95rem; color: #999; padding: 10px; }
 
-  /* Scenes */
+  /* Stories */
   .player-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
   .player-title { font-size: clamp(1.3rem, 4vw, 1.8rem); font-weight: bold; color: var(--accent6); }
   .progress { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; }
@@ -194,7 +212,6 @@
     padding: 18px 20px;
     margin: 0 auto;
     max-width: 640px;
-    position: relative;
   }
   .who { font-size: 1.1rem; font-weight: bold; color: var(--accent6); margin-bottom: 4px; }
   .line { font-size: clamp(1.4rem, 4.5vw, 2rem); line-height: 1.3; }
@@ -263,7 +280,6 @@
     <div id="food-grid" class="grid"></div>
   </section>
 
-  <!-- STORIES: everyday conversations, shopping, games -->
   <section id="view-scenes" class="view hidden">
     <div id="scene-list">
       <p class="section-title">Pick a story and practice real-life English!</p>
@@ -311,7 +327,9 @@
   </section>
 </main>
 
-<p class="footer-tip">Tip: turn the sound up! Every word is spoken out loud.</p>
+<p class="footer-tip">Tip: turn the sound up! Every word is spoken out loud and shown at the bottom.</p>
+
+<div id="caption" aria-live="polite"></div>
 
 <script>
 /* ===========================================================
@@ -378,7 +396,6 @@ const INSTRUCTIONS = {
   Each story is a list of steps. A step is [who, line, options].
   Each option is [emoji, text, ok]. ok = 1 means a good answer.
   To add a story, copy one block and change the words.
-  Keep lines short. Use simple words for ages 0–3.
 */
 const SCENES = [
   {
@@ -476,34 +493,65 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const sample = (arr, k) => shuffle([...arr]).slice(0, k);
 
 /* ===========================================================
-   SPEECH AND SOUND
-   iPad Safari only allows sound after a tap, so the start screen
+   SPEECH, CAPTIONS AND SOUND
+   Works on iPhone, iPad, and Android (Chrome, Samsung Internet).
+   Phones only allow sound after a tap, so the start screen
    and every tap count as that first tap.
    =========================================================== */
 
+const synth = ("speechSynthesis" in window) ? window.speechSynthesis : null;
+const captionEl = document.getElementById("caption");
+
 let voice = null;
-function pickVoice() {
-  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-  voice = voices.find(v => /en[-_]US/i.test(v.lang) && /samantha|female|google us/i.test(v.name))
-       || voices.find(v => /^en[-_]US/i.test(v.lang))
-       || voices.find(v => /^en/i.test(v.lang))
-       || null;
+function findVoice() {
+  if (!synth) return null;
+  const voices = synth.getVoices();
+  if (!voices.length) return null;
+  return voices.find(v => /en[-_]US/i.test(v.lang) && /samantha|google us|female/i.test(v.name))
+      || voices.find(v => /^en[-_]US/i.test(v.lang))
+      || voices.find(v => /^en/i.test(v.lang))
+      || null;
 }
-if (window.speechSynthesis) {
-  pickVoice();
-  speechSynthesis.onvoiceschanged = pickVoice;
+if (synth) {
+  voice = findVoice();
+  synth.onvoiceschanged = () => { voice = findVoice(); };
 }
 
-/* queue:true adds to the spoken queue instead of interrupting */
-function speak(text, { rate = 0.85, queue = false } = {}) {
-  if (!("speechSynthesis" in window)) return;
-  if (!queue) speechSynthesis.cancel();
+/* Android sometimes drops an utterance that is spoken right after cancel(),
+   and sometimes garbage-collects it before it finishes. Both are avoided by
+   a short pause and by keeping references to active utterances. */
+const activeUtterances = new Set();
+
+function speakNow(text, rate, pitch) {
+  if (!synth) return;
+  if (!voice) voice = findVoice();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
   u.rate = rate;
-  u.pitch = 1.15;
+  u.pitch = pitch;
   if (voice) u.voice = voice;
-  speechSynthesis.speak(u);
+  activeUtterances.add(u);
+  const done = () => activeUtterances.delete(u);
+  u.onend = done;
+  u.onerror = done;
+  synth.speak(u);
+  if (synth.paused) synth.resume();
+}
+
+/* text is always shown in the caption, even when sound fails */
+function showCaption(text) {
+  captionEl.textContent = text;
+}
+
+function speak(text, { rate = 0.85, queue = false } = {}) {
+  showCaption(text);
+  if (!synth) return;
+  if (queue) {
+    speakNow(text, rate, 1.15);
+  } else {
+    synth.cancel();
+    setTimeout(() => speakNow(text, rate, 1.15), 80);
+  }
 }
 
 let audioCtx = null;
@@ -530,6 +578,7 @@ function makeTile({ emoji, title, sub = "", speech, titleClass = "", emojiClass 
   const el = document.createElement("div");
   el.className = "tile";
   el.setAttribute("role", "button");
+  el.tabIndex = 0;
   el.innerHTML = `<div class="emoji ${emojiClass}">${emoji}</div>
                   <div class="word ${titleClass}">${title}</div>
                   ${sub ? `<div class="sub">${sub}</div>` : ""}`;
@@ -544,10 +593,13 @@ function fillGrid(id, items) {
 }
 
 function countUp(n) {
-  speechSynthesis.cancel();
-  for (let i = 1; i <= n; i++) {
-    speak(i === n ? `${i}! ${NUM_WORDS[n - 1]}!` : `${i}`, { rate: 0.9, queue: true });
-  }
+  if (synth) synth.cancel();
+  showCaption(Array.from({ length: n }, (_, i) => i + 1).join(", ") + "!");
+  setTimeout(() => {
+    for (let i = 1; i <= n; i++) {
+      speakNow(i === n ? `${i}! ${NUM_WORDS[n - 1]}!` : `${i}`, 0.9, 1.15);
+    }
+  }, 80);
 }
 
 function buildSections() {
@@ -562,6 +614,7 @@ function buildSections() {
     const el = document.createElement("div");
     el.className = "tile swatch-tile";
     el.setAttribute("role", "button");
+    el.tabIndex = 0;
     el.innerHTML = `<div class="swatch" style="background:${c.hex}; ${c.hex === "#ffffff" ? "border-bottom:2px solid #eee" : ""}"></div>
                     <div class="word">${c.name}</div>
                     <div class="sub">${c.emoji}</div>`;
@@ -599,7 +652,7 @@ function buildSections() {
 }
 
 /* ===========================================================
-   STORIES (everyday conversations, shopping, games)
+   STORIES
    =========================================================== */
 
 let sceneRun = null;   // { sc, i, locked }
@@ -642,6 +695,7 @@ function renderStep() {
     const b = document.createElement("div");
     b.className = "choice scene-choice";
     b.setAttribute("role", "button");
+    b.tabIndex = 0;
     b.innerHTML = `<div class="ch-e">${o.e}</div><div class="ch-t">${o.t}</div>`;
     b.addEventListener("click", () => chooseScene(b, o));
     box.appendChild(b);
@@ -656,8 +710,9 @@ function chooseScene(el, o) {
   if (o.ok) {
     sceneRun.locked = true;
     el.classList.add("right");
-    document.getElementById("sc-celebrate").textContent = pick(PRAISE);
-    speak(`${pick(PRAISE)} ${o.t}`);
+    const praise = pick(PRAISE);
+    document.getElementById("sc-celebrate").textContent = praise;
+    speak(`${praise} ${o.t}`);
     sceneTimer = setTimeout(() => {
       sceneRun.i++;
       sceneRun.locked = false;
@@ -771,6 +826,7 @@ function newRound() {
     b.className = "choice" + (q.textChoices ? " text" : "");
     b.textContent = opt.label;
     b.setAttribute("role", "button");
+    b.tabIndex = 0;
     b.addEventListener("click", () => onChoice(b, opt));
     box.appendChild(b);
   });
@@ -831,8 +887,8 @@ function showView(name, { silent = false } = {}) {
   VIEWS.forEach(v => document.getElementById(`view-${v}`).classList.toggle("hidden", v !== name));
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.view === name));
 
-  if (name !== "scenes") { clearTimeout(sceneTimer); }
-  if (name === "scenes") { showSceneList(); }
+  if (name !== "scenes") clearTimeout(sceneTimer);
+  if (name === "scenes") showSceneList();
   if (name === "play") {
     if (!current) setLevel(level);
     else document.getElementById("levels").scrollIntoView({ behavior: "smooth" });
